@@ -1,0 +1,12 @@
+Just started exploring concepts like order book, I think the data structures will be the first thing I work on to gain 
+insight on how to use them later on. I also want to explore how financial APIs work, so IPYNB data exploartion is also 
+and intermediate goal, to see which data we can fetch and how we can operate on it. Then I can start working on the engine
+and speicifics of the trading algorithm.
+
+Intermediate TODOs: 
+Implement order book structure (Python or C++?)
+Use IPYNB to explore financial APIs
+
+Ultimate TODOs: 
+Implement trading engine logic
+Integrate real-life trading APIs to work real data
