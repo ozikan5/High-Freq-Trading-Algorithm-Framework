@@ -74,3 +74,5 @@ dmypy.json
 # Project-specific
 backtest_results/
 live_trades/
+
+.DS_Store

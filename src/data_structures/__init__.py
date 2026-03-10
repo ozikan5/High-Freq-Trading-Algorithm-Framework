@@ -7,10 +7,11 @@ from src.data_structures.constants import (
     SIDE_SELL,
     TICK_SIZE,
 )
-from src.data_structures.models import Order
+from src.data_structures.models import Limit, Order
 
 # for importing every constant with * notation
 __all__ = [
+    "Limit",
     "Order",
     "ORDER_TYPE_LIMIT",
     "ORDER_TYPE_MARKET",
