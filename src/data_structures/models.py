@@ -40,7 +40,7 @@ class Order:
         self.order_type = order_type
         self.timestamp = timestamp if timestamp is not None else time.time()
 
-# class for represeenting a single price level in the order book
+# class for representing a single price level in the order book
 class Limit:
 
     def __init__(self, price: int):
@@ -54,22 +54,25 @@ class Limit:
         self.orders.append(new_order)
         self.total_volume += new_order.quantity
 
-    # match the quanitity with the orders in FIFO basis
-    def match(self, quantity: int) -> int:
+    # match the quantity with the orders in FIFO basis
+    # returns of how many quantities is filled and a list of all orderes that are fully fullfilled
+    def match(self, quantity: int) -> tuple[int, list["Order"]]:
         if quantity <= 0:
-            return 0
+            return 0, []
 
         q_left = quantity
         filled = 0
+        fully_filled: list[Order] = []
 
-        # fill the orders until we don't have desired quantity left or order left
+        # fully fill orders
         while self.orders and self.orders[0].quantity <= q_left:
             order = self.orders.popleft()
             filled += order.quantity
             q_left -= order.quantity
             self.total_volume -= order.quantity
+            fully_filled.append(order)
 
-        # if any remaining quantity and orders, also pop that order
+        # partial fill of first order, if any
         if self.orders and q_left > 0:
             order = self.orders[0]
             filled += q_left
@@ -77,9 +80,9 @@ class Limit:
             self.total_volume -= q_left
             if order.quantity <= 0:
                 self.orders.popleft()
+                fully_filled.append(order)
 
-        # return the number of quantity filled
-        return filled
+        return filled, fully_filled
 
     def cancel(self, order: Order) -> None:
         self.orders.remove(order)
