@@ -1,4 +1,5 @@
 import bisect
+from typing import Callable
 
 from src.data_structures.constants import ORDER_TYPE_LIMIT, ORDER_TYPE_MARKET, SIDE_BUY, SIDE_SELL
 from src.data_structures.models import Limit, Order, Trade
@@ -13,22 +14,23 @@ class OrderBook:
         self.order_map: dict[str, tuple[Order, Limit]] = {}  # this will map the order_id to an order, limit tuple
         self.price_map: dict[int, Limit] = {}  # this will map any price to its following limit structure
 
-    def process_market_order(self, order : Order) -> bool:
-        # routine validation checks
+    def process_market_order(self, order: Order) -> tuple[bool, list[Trade]]:
         if order.symbol != self.symbol:
-            return False
+            return False, []
         if order.order_type != ORDER_TYPE_MARKET:
-            return False
+            return False, []
         if order.quantity <= 0:
-            return False
+            return False, []
         if str(order.order_id) in self.order_map:
-            return False
-        
+            return False, []
+
         quantity = order.quantity
+        # create lambda function for the while loop inside match
+        can_cross = (lambda: bool(self.asks)) if order.side == SIDE_BUY else (lambda: bool(self.bids))
+        fills = self._match_and_rest(order, quantity, can_cross, add_rest=False)
+        order.fills = fills
+        return True, fills
 
-        raise NotImplementedError("Market orders are not implemented yet")
-
-    
     # this is for processing limit orders
     def process_limit_order(self, order: Order) -> tuple[bool, list[Trade]]:
 
@@ -43,23 +45,31 @@ class OrderBook:
             return False, []
 
         quantity = order.quantity
-        fills = self._match_and_rest(order, quantity)
-        order.fills = fills  # attach for caller convenience
+        can_cross = (
+            (lambda: self.asks and order.price >= self.asks[0])
+            if order.side == SIDE_BUY
+            else (lambda: self.bids and order.price <= -self.bids[0])
+        )
+        fills = self._match_and_rest(order, quantity, can_cross, add_rest=True)
+        order.fills = fills
         return True, fills
 
-    # helper for matching both buy and sell orders with limits
-    def _match_and_rest(self, order: Order, quantity: int) -> list[Trade]:
-        # create lambda cond functions for the while loop
+    # helper for matching and optionally resting; used by both limit and market orders
+    def _match_and_rest(
+        self,
+        order: Order,
+        quantity: int,
+        can_cross: Callable[[], bool],
+        add_rest: bool = True,
+    ) -> list[Trade]:
         if order.side == SIDE_BUY:
             opposite_side = self.asks
-            can_cross = lambda: self.asks and order.price >= self.asks[0]
         else:
             opposite_side = self.bids
-            can_cross = lambda: self.bids and order.price <= -self.bids[0]
 
         fills: list[Trade] = []
 
-        # match orders until not possible, remove empty limits
+        # match orders until can_cross is false or quantity exhausted
         while can_cross() and quantity > 0:
             if order.side == SIDE_BUY:
                 best_price = opposite_side[0]
@@ -68,10 +78,12 @@ class OrderBook:
 
             best_limit = self.price_map[best_price]
 
-            filled, fully_filled = best_limit.match(quantity)
+            filled, fully_filled, partial_maker = best_limit.match(quantity)
             quantity -= filled
 
             maker_ids = [str(o.order_id) for o in fully_filled]
+            if partial_maker is not None:
+                maker_ids.append(str(partial_maker.order_id))
             fills.append(
                 Trade(
                     price=best_price,
@@ -87,7 +99,7 @@ class OrderBook:
             if best_limit.is_empty():
                 self._remove_level(opposite_side, best_price, order.side == SIDE_SELL)
 
-        if quantity > 0:
+        if add_rest and quantity > 0:
             order.quantity = quantity
             self._add_to_book(order)
 

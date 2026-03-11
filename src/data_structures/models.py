@@ -63,14 +63,15 @@ class Limit:
         self.total_volume += new_order.quantity
 
     # match the quantity with the orders in FIFO basis
-    # returns of how many quantities is filled and a list of all orderes that are fully fullfilled
-    def match(self, quantity: int) -> tuple[int, list["Order"]]:
+    # returns: (filled_qty, fully_filled_orders, partial_maker_or_None)
+    def match(self, quantity: int) -> tuple[int, list["Order"], "Order | None"]:
         if quantity <= 0:
-            return 0, []
+            return 0, [], None
 
         q_left = quantity
         filled = 0
         fully_filled: list[Order] = []
+        partial_maker: Order | None = None
 
         # fully fill orders
         while self.orders and self.orders[0].quantity <= q_left:
@@ -86,11 +87,13 @@ class Limit:
             filled += q_left
             order.quantity -= q_left
             self.total_volume -= q_left
+            partial_maker = order
             if order.quantity <= 0:
                 self.orders.popleft()
                 fully_filled.append(order)
+                partial_maker = None
 
-        return filled, fully_filled
+        return filled, fully_filled, partial_maker
 
     def cancel(self, order: Order) -> None:
         self.orders.remove(order)

@@ -28,6 +28,22 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+## Running Tests
+
+```bash
+# Run all tests with pytest (verbose, show print output)
+python -m pytest tests/ -v -s
+
+# Run a specific test
+python -m pytest tests/test_order_book.py::test_market_order -v -s
+
+# Run tests matching a pattern
+python -m pytest tests/ -v -s -k "fill"
+
+# Alternative: run without pytest
+python scripts/run_tests.py
+```
+
 ## License
 
 MIT

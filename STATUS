@@ -3,6 +3,11 @@ insight on how to use them later on. I also want to explore how financial APIs w
 and intermediate goal, to see which data we can fetch and how we can operate on it. Then I can start working on the engine
 and speicifics of the trading algorithm.
 
+Update v0.01: Just implemented the majority of Order Book data structure logic
+and generated test evaluation logic. Right now, all the models and data structures
+are in Python but I assume I'll convert them to C++ for even faster execution
+and optimiziations in the future.
+
 Intermediate TODOs: 
 Implement order book structure (Python or C++?)
 Use IPYNB to explore financial APIs
