@@ -1,7 +1,7 @@
 import bisect
 
 from src.data_structures.constants import ORDER_TYPE_LIMIT, ORDER_TYPE_MARKET, SIDE_BUY, SIDE_SELL
-from src.data_structures.models import Limit, Order
+from src.data_structures.models import Limit, Order, Trade
 
 
 # main order book data structure for a symbol
@@ -30,26 +30,26 @@ class OrderBook:
 
     
     # this is for processing limit orders
-    def process_limit_order(self, order: Order) -> bool:
-   
+    def process_limit_order(self, order: Order) -> tuple[bool, list[Trade]]:
+
         # routine validation checks
         if order.symbol != self.symbol:
-            return False
+            return False, []
         if order.order_type != ORDER_TYPE_LIMIT:
-            return False
+            return False, []
         if order.quantity <= 0:
-            return False
+            return False, []
         if str(order.order_id) in self.order_map:
-            return False
+            return False, []
 
         quantity = order.quantity
-        # call helper
-        self._match_and_rest(order, quantity)
-        return True
+        fills = self._match_and_rest(order, quantity)
+        order.fills = fills  # attach for caller convenience
+        return True, fills
 
     # helper for matching both buy and sell orders with limits
-    def _match_and_rest(self, order: Order, quantity: int) -> None:
-        # create lambad cond functions to crate the while loop 
+    def _match_and_rest(self, order: Order, quantity: int) -> list[Trade]:
+        # create lambda cond functions for the while loop
         if order.side == SIDE_BUY:
             opposite_side = self.asks
             can_cross = lambda: self.asks and order.price >= self.asks[0]
@@ -57,7 +57,9 @@ class OrderBook:
             opposite_side = self.bids
             can_cross = lambda: self.bids and order.price <= -self.bids[0]
 
-        # match orders with the needs until its not possible, delete the limit objects if they are empty and clear out the dicts
+        fills: list[Trade] = []
+
+        # match orders until not possible, remove empty limits
         while can_cross() and quantity > 0:
             if order.side == SIDE_BUY:
                 best_price = opposite_side[0]
@@ -69,6 +71,16 @@ class OrderBook:
             filled, fully_filled = best_limit.match(quantity)
             quantity -= filled
 
+            maker_ids = [str(o.order_id) for o in fully_filled]
+            fills.append(
+                Trade(
+                    price=best_price,
+                    quantity=filled,
+                    taker_order_id=str(order.order_id),
+                    maker_order_ids=maker_ids,
+                )
+            )
+
             for filled_order in fully_filled:
                 self.order_map.pop(str(filled_order.order_id), None)
 
@@ -78,6 +90,8 @@ class OrderBook:
         if quantity > 0:
             order.quantity = quantity
             self._add_to_book(order)
+
+        return fills
 
     # add orders to the book
     def _add_to_book(self, order: Order) -> None:

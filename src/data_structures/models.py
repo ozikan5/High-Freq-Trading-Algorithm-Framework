@@ -1,6 +1,7 @@
 # this file contains data structure models for orders and order books
 
 import time
+from dataclasses import dataclass, field
 
 from src.data_structures.constants import SIDE_BUY, SIDE_SELL, ORDER_TYPE_LIMIT, ORDER_TYPE_MARKET
 from collections import deque
@@ -40,9 +41,16 @@ class Order:
         self.order_type = order_type
         self.timestamp = timestamp if timestamp is not None else time.time()
 
-# class for representing a single price level in the order book
-class Limit:
+# new dataclass to hold trade details of a fullfilled match
+@dataclass
+class Trade:
+    price: int
+    quantity: int
+    taker_order_id: str
+    maker_order_ids: list[str]
+    timestamp: float = field(default_factory=time.time)
 
+class Limit:
     def __init__(self, price: int):
         if price < 0:
             raise ValueError("price (in ticks) cannot be negative")
