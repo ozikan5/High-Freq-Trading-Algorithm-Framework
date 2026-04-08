@@ -141,4 +141,17 @@ class OrderBook:
         return (ba - bb) if (bb is not None and ba is not None) else None
 
     def cancel_order(self, order_id: str) -> bool:
-        raise NotImplementedError("Cancel order is not implemented yet")
+        if order_id not in self.order_map:
+            return False
+
+        order, limit = self.order_map.pop(order_id)
+        limit.cancel(order)
+
+        if limit.is_empty():
+            self._remove_level(
+                self.bids if order.side == SIDE_BUY else self.asks,
+                order.price,
+                order.side == SIDE_BUY,
+            )
+
+        return True

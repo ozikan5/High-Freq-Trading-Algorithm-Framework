@@ -144,3 +144,48 @@ def test_limit_partial_fill():
     assert len(full) == 0
     assert partial_maker is o
     assert o.quantity == 5
+
+
+def test_cancel_resting_bid():
+    print("\n  → Cancel a resting bid; order removed from book")
+    book = OrderBook("AAPL")
+    book.process_limit_order(Order("b1", "AAPL", 1000, SIDE_BUY, 10, ORDER_TYPE_LIMIT))
+    assert book.cancel_order("b1") is True
+    assert book.best_bid() is None
+    assert "b1" not in book.order_map
+
+
+def test_cancel_resting_ask():
+    print("\n  → Cancel a resting ask; order removed from book")
+    book = OrderBook("AAPL")
+    book.process_limit_order(Order("s1", "AAPL", 1010, SIDE_SELL, 10, ORDER_TYPE_LIMIT))
+    assert book.cancel_order("s1") is True
+    assert book.best_ask() is None
+    assert "s1" not in book.order_map
+
+
+def test_cancel_clears_price_level():
+    print("\n  → Cancelling last order at a level removes that level")
+    book = OrderBook("AAPL")
+    book.process_limit_order(Order("b1", "AAPL", 1000, SIDE_BUY, 5, ORDER_TYPE_LIMIT))
+    book.process_limit_order(Order("b2", "AAPL", 999, SIDE_BUY, 5, ORDER_TYPE_LIMIT))
+    book.cancel_order("b1")
+    assert book.best_bid() == 999
+    assert 1000 not in book.price_map
+
+
+def test_cancel_one_of_two_at_same_level():
+    print("\n  → Cancelling one order at a level keeps the level alive")
+    book = OrderBook("AAPL")
+    book.process_limit_order(Order("b1", "AAPL", 1000, SIDE_BUY, 5, ORDER_TYPE_LIMIT))
+    book.process_limit_order(Order("b2", "AAPL", 1000, SIDE_BUY, 3, ORDER_TYPE_LIMIT))
+    book.cancel_order("b1")
+    assert book.best_bid() == 1000
+    assert 1000 in book.price_map
+    assert book.price_map[1000].total_volume == 3
+
+
+def test_cancel_nonexistent_order():
+    print("\n  → Cancel unknown order_id returns False")
+    book = OrderBook("AAPL")
+    assert book.cancel_order("does_not_exist") is False
